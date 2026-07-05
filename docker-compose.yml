@@ -1,31 +1,31 @@
 version: '3.8'
 services:
-  postgres:
-    image: postgres:15
-    container_name: flag-postgres
-    environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=flag_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - feature-flag-gateway
-  redis:
-    image: redis:7
-    container_name: flag-redis
-    command: redis-server --requirepass "password"
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - feature-flag-gateway
+    postgres:
+        image: postgres:15
+        container_name: flag-postgres
+        environment:
+            - POSTGRES_USER=admin
+            - POSTGRES_PASSWORD=password
+            - POSTGRES_DB=flag_db
+        ports:
+            - '5432:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        networks:
+            - feature-flag-gateway
+    redis:
+        image: redis:7
+        container_name: flag-redis
+        command: redis-server --requirepass "password"
+        ports:
+            - '6379:6379'
+        volumes:
+            - redis_data:/data
+        networks:
+            - feature-flag-gateway
 volumes:
-  postgres_data:
-  redis_data:
+    postgres_data:
+    redis_data:
 networks:
-  feature-flag-gateway:
-    driver: bridge
+    feature-flag-gateway:
+        driver: bridge
