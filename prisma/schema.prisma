@@ -1,0 +1,15 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model FeatureFlag {
+    id String @id @default(uuid())
+    key String @unique
+    enabled Boolean @default(false)
+    conditions Json
+    updatedAt DateTime @updatedAt
+}
