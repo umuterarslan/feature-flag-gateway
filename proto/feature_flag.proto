@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package featureflag;
+
+service FlagService {
+    rpc IsFeatureEnabled (FlagRequest) returns (FlagResponse);
+}
+
+message FlagRequest {
+    string key = 1;
+    map<string, string> context = 2;
+}
+
+message FlagResponse {
+    bool enabled = 1;
+}
