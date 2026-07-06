@@ -3,6 +3,7 @@ import * as protoLoader from '@grpc/proto-loader';
 import { getFeatureFlag } from '../services/flag.service.js';
 import path from 'path';
 import donenv from 'dotenv';
+import { fileURLToPath } from 'url';
 donenv.config();
 
 type FlagRequest = {
@@ -13,6 +14,9 @@ type FlagRequest = {
 type FlagResponse = {
     enabled: boolean;
 };
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const packageDefinition = protoLoader.loadSync(
     path.join(__dirname, '../../proto/feature_flag.proto')

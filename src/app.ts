@@ -1,7 +1,8 @@
 import express from 'express';
 import flagRoutes from '../src/routes/flag.routes.js';
-import dotenv from 'dotenv';
 import { errorHandler } from './middlewares/error.middleware.js';
+import '../src/grpc/server.js';
+import dotenv from 'dotenv';
 dotenv.config();
 
 const PORT = process.env.PORT;
