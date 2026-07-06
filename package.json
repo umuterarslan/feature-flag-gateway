@@ -5,7 +5,7 @@
     "main": "index.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "dev": "ts-node src/index.ts"
+        "dev": "tsx watch src/app.ts"
     },
     "keywords": [],
     "author": "",
@@ -16,6 +16,7 @@
         "@types/node": "^26.1.0",
         "prisma": "^7.8.0",
         "ts-node": "^10.9.2",
+        "tsx": "^4.23.0",
         "typescript": "^6.0.3"
     },
     "dependencies": {
@@ -25,6 +26,7 @@
         "@prisma/client": "^7.8.0",
         "dotenv": "^17.4.2",
         "express": "^5.2.1",
-        "redis": "^6.1.0"
+        "redis": "^6.1.0",
+        "zod": "^4.4.3"
     }
 }
