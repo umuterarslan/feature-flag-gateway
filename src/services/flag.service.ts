@@ -34,18 +34,18 @@ const evaluateConditions = (flag: any, context?: any): boolean => {
     if (!flag.conditions || Object.keys(flag.conditions).length === 0) return true;
     if (!context) return false;
 
-    if (flag.conditions.rolloutPercentage !== undefined) {
+    if (flag.conditions.percentage !== undefined) {
         if (!context.userId) return false;
 
         const hashInput = context.userId + flag.key;
         const hash = crypto.createHash('md5').update(hashInput).digest('hex');
         const bucket = parseInt(hash.substring(0, 8), 16) % 100;
 
-        if (bucket >= flag.conditions.rolloutPercentage) return false;
+        if (bucket >= flag.conditions.percentage) return false;
     }
 
     return Object.entries(flag.conditions).every(([key, value]) => {
-        if (key === 'rolloutPercentage') return true; // already handled above
+        if (key === 'percentage') return true; // already handled above
         return context[key] === value;
     });
 };
