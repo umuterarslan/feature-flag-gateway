@@ -2,9 +2,10 @@ import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { getFeatureFlag } from '../services/flag.service.js';
 import path from 'path';
-import donenv from 'dotenv';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-donenv.config();
+import { flagEvents } from '../utils/eventEmitter.js';
+dotenv.config();
 
 type FlagRequest = {
     key: string;
@@ -12,6 +13,15 @@ type FlagRequest = {
 };
 
 type FlagResponse = {
+    enabled: boolean;
+};
+
+type SubscribeRequest = {
+    key: string;
+};
+
+type FlagUpdate = {
+    key: string;
     enabled: boolean;
 };
 
@@ -43,8 +53,31 @@ async function isFeatureEnabled(
     }
 }
 
+async function streamFlags(call: grpc.ServerWritableStream<SubscribeRequest, FlagUpdate>) {
+    console.log('A new gRPC Stream link has been opened');
+
+    const onFlagUpdate = async (data: FlagUpdate) => {
+        if (call.request.key && call.request.key !== data.key) return;
+
+        call.write({
+            key: data.key,
+            enabled: data.enabled,
+        });
+    };
+
+    flagEvents.on('flag_updated', onFlagUpdate);
+
+    call.on('cancelled', () => {
+        console.log('gRPC Stream link has been disconnected');
+        flagEvents.removeListener('flag_updated', onFlagUpdate);
+    });
+}
+
 const server = new grpc.Server();
-server.addService(flagProto.FlagService.service, { IsFeatureEnabled: isFeatureEnabled });
+server.addService(flagProto.FlagService.service, {
+    IsFeatureEnabled: isFeatureEnabled,
+    streamFlags: streamFlags,
+});
 
 let grpcPort = process.env.GRPC_PORT || '50051';
 

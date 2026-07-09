@@ -9,6 +9,7 @@ import {
 } from '../schemas/flag.schema.js';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
+import { flagEvents } from '../utils/eventEmitter.js';
 
 export const createFeatureFlag = async (req: Request, res: Response, next: NextFunction) => {
     const validateData = createFeatureFlagSchema.parse(req.body);
@@ -40,6 +41,11 @@ export const updateFeatureFlag = async (req: Request, res: Response, next: NextF
             data: cleanUpdateData,
         });
         await redisClient.del(`flag:${updateData.key}`);
+
+        flagEvents.emit('flag_updated', {
+            key: update.key,
+            enabled: update.enabled,
+        });
         res.json({ success: true, data: update });
     } catch (error) {
         next(error);

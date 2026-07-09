@@ -4,6 +4,8 @@ package featureflag;
 
 service FlagService {
     rpc IsFeatureEnabled (FlagRequest) returns (FlagResponse);
+
+    rpc StreamFlags (StreamRequest) returns (stream FlagUpdate);
 }
 
 message FlagRequest {
@@ -13,4 +15,12 @@ message FlagRequest {
 
 message FlagResponse {
     bool enabled = 1;
+}
+
+message StreamRequest {
+    string key = 1;
+}
+message FlagUpdate {
+    string key = 1;
+    bool enabled = 2;
 }
