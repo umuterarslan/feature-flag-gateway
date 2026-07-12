@@ -3,9 +3,8 @@ import { treeifyError, z } from 'zod';
 import { Prisma } from '@prisma/client';
 
 export const errorHandler = async (error: any, req: Request, res: Response, next: NextFunction) => {
-    const formattedErrors = error.flatten().fieldErrors;
-
     if (error instanceof z.ZodError) {
+        const formattedErrors = z.treeifyError(error);
         return res.status(400).json({
             success: false,
             message: 'Validation error',

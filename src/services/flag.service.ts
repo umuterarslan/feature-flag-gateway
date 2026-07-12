@@ -2,9 +2,13 @@ import prisma from '../config/db.js';
 import redisClient from '../config/redis.js';
 import crypto from 'crypto';
 
-export const getFeatureFlag = async (key: string, context?: any): Promise<boolean> => {
+export const getFeatureFlag = async (
+    tenantId: string,
+    key: string,
+    context?: any
+): Promise<boolean> => {
     try {
-        const cacheKey = `flag:${key}`;
+        const cacheKey = `flag:${tenantId}:${key}`;
         const cachedFlag = await redisClient.get(cacheKey);
 
         if (cachedFlag) {
@@ -13,7 +17,12 @@ export const getFeatureFlag = async (key: string, context?: any): Promise<boolea
         }
 
         const flag = await prisma.featureFlag.findUnique({
-            where: { key },
+            where: {
+                tenantId_key: {
+                    tenantId,
+                    key,
+                },
+            },
         });
         if (!flag) {
             console.error(`Feature flag with key "${key}" not found in cache and database.`);

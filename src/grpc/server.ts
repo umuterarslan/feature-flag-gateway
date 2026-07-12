@@ -1,10 +1,12 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { getFeatureFlag } from '../services/flag.service.js';
-import path from 'path';
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { flagEvents } from '../utils/eventEmitter.js';
+import { wrapService } from '../utils/grpc-wrapper.js';
+import type { AuthenticatedUnaryCall, AuthenticatedStreamCall } from '../types/grpc.types.js';
+import path from 'path';
+import dotenv from 'dotenv';
 dotenv.config();
 
 type FlagRequest = {
@@ -35,12 +37,13 @@ const protoDescriptor = grpc.loadPackageDefinition(packageDefinition) as any;
 const flagProto = protoDescriptor.featureflag;
 
 async function isFeatureEnabled(
-    call: grpc.ServerUnaryCall<FlagRequest, FlagResponse>,
+    call: AuthenticatedUnaryCall<FlagRequest, FlagResponse>,
     callback: grpc.sendUnaryData<FlagResponse>
 ) {
     try {
         const { key, context } = call.request;
-        const enabled = await getFeatureFlag(key, context);
+        const tenantId = call.tenantId;
+        const enabled = await getFeatureFlag(tenantId, key, context);
         callback(null, { enabled });
     } catch (error) {
         callback(
@@ -53,7 +56,7 @@ async function isFeatureEnabled(
     }
 }
 
-async function streamFlags(call: grpc.ServerWritableStream<SubscribeRequest, FlagUpdate>) {
+async function streamFlags(call: AuthenticatedStreamCall<SubscribeRequest, FlagUpdate>) {
     console.log('A new gRPC Stream link has been opened');
 
     const onFlagUpdate = async (data: FlagUpdate) => {
@@ -73,18 +76,22 @@ async function streamFlags(call: grpc.ServerWritableStream<SubscribeRequest, Fla
     });
 }
 
+const services = {
+    isFeatureEnabled,
+    streamFlags,
+};
+
+const wrappedServices = wrapService(services);
+
 const server = new grpc.Server();
-server.addService(flagProto.FlagService.service, {
-    IsFeatureEnabled: isFeatureEnabled,
-    streamFlags: streamFlags,
-});
+server.addService(flagProto.FlagService.service, wrappedServices);
 
 let grpcPort = process.env.GRPC_PORT || '50051';
 
-server.bindAsync(`localhost:${grpcPort}`, grpc.ServerCredentials.createInsecure(), (err, port) => {
+server.bindAsync(`0.0.0.0:${grpcPort}`, grpc.ServerCredentials.createInsecure(), (err, port) => {
     if (err) {
         console.error('Error starting gRPC server:', err);
         return;
     }
-    console.log(`gRPC server started on localhost:${port}`);
+    console.log(`gRPC server started on 0.0.0.0t:${port}`);
 });

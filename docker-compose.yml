@@ -1,31 +1,114 @@
 version: '3.8'
+
 services:
     postgres:
         image: postgres:15
         container_name: flag-postgres
+        env_file: .env
         environment:
-            - POSTGRES_USER=admin
-            - POSTGRES_PASSWORD=password
-            - POSTGRES_DB=flag_db
-        ports:
-            - '5432:5432'
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
         volumes:
             - postgres_data:/var/lib/postgresql/data
         networks:
             - feature-flag-gateway
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
     redis:
         image: redis:7
         container_name: flag-redis
-        command: redis-server --requirepass "password"
-        ports:
-            - '6379:6379'
+        env_file: .env
+        command: redis-server --requirepass ${REDIS_PASSWORD}
         volumes:
             - redis_data:/data
         networks:
             - feature-flag-gateway
+        healthcheck:
+            test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
+    keycloak-db:
+        image: postgres:15
+        container_name: flag-keycloak-postgres
+        env_file: .env
+        environment:
+            POSTGRES_USER: ${KEYCLOAK_DB_USER}
+            POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+            POSTGRES_DB: keycloak_db
+        networks:
+            - feature-flag-gateway
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U keycloak -d keycloak_db']
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
+    keycloak:
+        image: quay.io/keycloak/keycloak:25.0.0
+        container_name: flag-keycloak-service
+        command: start-dev --import-realm
+        env_file: .env
+        environment:
+            KC_DB: postgres
+            KC_DB_URL: jdbc:postgresql://keycloak-db/keycloak_db
+            KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+            KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+            KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+            KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+            #KC_HOSTNAME: http://localhost:8080
+        ports:
+            - '8080:8080'
+        depends_on:
+            keycloak-db:
+                condition: service_healthy
+        volumes:
+            - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
+        networks:
+            - feature-flag-gateway
+
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: flag-gateway
+        env_file: .env
+        environment:
+            NODE_ENV: production
+            PORT: 3000
+            GRPC_PORT: 50051
+            DATABASE_URL: ${DATABASE_URL}
+            REDIS_URL: ${REDIS_URL}
+            KEYCLOAK_URL: http://keycloak:8080
+            KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT}
+            JWT_AUDIENCE: ${KEYCLOAK_CLIENT}
+            KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+            JWT_ISSUER: ${JWT_ISSUER}
+            JWT_JWKS_URI: ${JWT_JWKS_URI}
+        ports:
+            - '3000:3000'
+            - '50051:50051'
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            keycloak:
+                condition: service_started
+        networks:
+            - feature-flag-gateway
+        restart: unless-stopped
+
 volumes:
     postgres_data:
     redis_data:
+
 networks:
     feature-flag-gateway:
         driver: bridge

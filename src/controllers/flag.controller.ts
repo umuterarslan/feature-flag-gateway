@@ -7,56 +7,82 @@ import {
     flagIdParamsSchema,
     updateFeatureFlagSchema,
 } from '../schemas/flag.schema.js';
-import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 import { flagEvents } from '../utils/eventEmitter.js';
+import { type AuthRequest } from '../middlewares/auth.middleware.js';
 
-export const createFeatureFlag = async (req: Request, res: Response, next: NextFunction) => {
+export const createFeatureFlag = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const validateData = createFeatureFlagSchema.parse(req.body);
+    const { name, tenantId } = req.user;
 
     try {
+        await prisma.tenant.upsert({
+            where: { id: tenantId },
+            update: {},
+            create: { id: tenantId, name },
+        });
+
         const flag = await prisma.featureFlag.create({
             data: {
                 key: validateData.key,
                 enabled: validateData.enabled,
                 conditions: validateData.conditions,
+                tenantId: tenantId,
             },
         });
         res.status(201).json({ success: true, data: flag });
     } catch (error) {
+        console.log(error);
         next(error);
     }
 };
 
-export const updateFeatureFlag = async (req: Request, res: Response, next: NextFunction) => {
+export const updateFeatureFlag = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const { id } = flagIdParamsSchema.parse(req.params);
+        const tenantId = req.user.tenantId;
+
         const updateData = updateFeatureFlagSchema.parse(req.body);
         const cleanUpdateData = Object.fromEntries(
             Object.entries(updateData).filter(([_, value]) => value !== undefined)
         );
 
-        const update = await prisma.featureFlag.update({
-            where: { id },
+        const updateResult = await prisma.featureFlag.updateMany({
+            where: { id, tenantId },
             data: cleanUpdateData,
         });
-        await redisClient.del(`flag:${updateData.key}`);
 
-        flagEvents.emit('flag_updated', {
-            key: update.key,
-            enabled: update.enabled,
+        if (updateResult.count === 0) {
+            return res
+                .status(404)
+                .json({ success: false, message: 'Feature flag not found or unauthorized' });
+        }
+
+        const updatedFlag = await prisma.featureFlag.findUnique({
+            where: { id },
         });
-        res.json({ success: true, data: update });
+
+        if (updatedFlag) {
+            await redisClient.del(`flag:${updatedFlag.key}`);
+
+            flagEvents.emit('flag_updated', {
+                key: updatedFlag.key,
+                enabled: updatedFlag.enabled,
+            });
+        }
+
+        res.json({ success: true, data: updatedFlag });
     } catch (error) {
         next(error);
     }
 };
 
-export const getAllFeatureFlags = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllFeatureFlags = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { cursor, limit } = getAllFeatureFlagsSchema.parse(req.query);
+    const tenantId = req.user.tenantId;
 
     try {
         const flags = await prisma.featureFlag.findMany({
+            where: { tenantId },
             take: limit,
             orderBy: { key: 'asc' },
             ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
@@ -71,12 +97,13 @@ export const getAllFeatureFlags = async (req: Request, res: Response, next: Next
     }
 };
 
-export const getFeatureFlagById = async (req: Request, res: Response, next: NextFunction) => {
+export const getFeatureFlagById = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { id } = flagIdParamsSchema.parse(req.params);
+    const tenantId = req.user.tenantId;
 
     try {
         const flag = await prisma.featureFlag.findUniqueOrThrow({
-            where: { id },
+            where: { id, tenantId },
         });
         res.json({ success: true, data: flag });
     } catch (error) {

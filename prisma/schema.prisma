@@ -6,10 +6,36 @@ datasource db {
     provider = "postgresql"
 }
 
+model Tenant {
+    id        String        @id @default(uuid())
+    name      String
+    apiKeys   ApiKey[]
+    flags     FeatureFlag[]
+    createdAt DateTime      @default(now())
+    updatedAt DateTime      @updatedAt
+}
+
+model ApiKey {
+    id        String    @id @default(uuid())
+    key       String    @unique
+    name      String
+    tenantId  String
+    tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+    createdAt DateTime  @default(now())
+    lastUsed  DateTime?
+
+    @@unique([tenantId, name])
+}
+
 model FeatureFlag {
-    id String @id @default(uuid())
-    key String @unique
-    enabled Boolean @default(false)
+    id         String   @id @default(uuid())
+    key        String
+    enabled    Boolean  @default(false)
     conditions Json
-    updatedAt DateTime @updatedAt
+    tenantId   String
+    tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@unique([tenantId, key])
 }
