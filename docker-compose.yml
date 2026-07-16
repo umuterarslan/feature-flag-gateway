@@ -45,7 +45,7 @@ services:
         networks:
             - feature-flag-gateway
         healthcheck:
-            test: ['CMD-SHELL', 'pg_isready -U keycloak -d keycloak_db']
+            test: ['CMD-SHELL', 'pg_isready -U $${KEYCLOAK_DB_USER} -d keycloak_db']
             interval: 5s
             timeout: 5s
             retries: 5
@@ -62,7 +62,6 @@ services:
             KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
             KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
             KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-            #KC_HOSTNAME: http://localhost:8080
         ports:
             - '8080:8080'
         depends_on:
@@ -70,6 +69,22 @@ services:
                 condition: service_healthy
         volumes:
             - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
+        networks:
+            - feature-flag-gateway
+
+    flag-migrator:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: flag-migrator
+        user: root
+        env_file: .env
+        environment:
+            DATABASE_URL: ${DATABASE_URL}
+        command: npx prisma migrate deploy
+        depends_on:
+            postgres:
+                condition: service_healthy
         networks:
             - feature-flag-gateway
 
@@ -99,6 +114,8 @@ services:
                 condition: service_healthy
             redis:
                 condition: service_healthy
+            flag-migrator:
+                condition: service_completed_successfully
             keycloak:
                 condition: service_started
         networks:
