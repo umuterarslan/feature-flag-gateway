@@ -23,4 +23,5 @@ message StreamRequest {
 message FlagUpdate {
     string key = 1;
     bool enabled = 2;
+    map<string, string> conditions = 3;
 }

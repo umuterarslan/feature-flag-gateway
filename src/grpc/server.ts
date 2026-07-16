@@ -25,6 +25,7 @@ type SubscribeRequest = {
 type FlagUpdate = {
     key: string;
     enabled: boolean;
+    conditions: Record<string, string>;
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -65,6 +66,7 @@ async function streamFlags(call: AuthenticatedStreamCall<SubscribeRequest, FlagU
         call.write({
             key: data.key,
             enabled: data.enabled,
+            conditions: data.conditions,
         });
     };
 

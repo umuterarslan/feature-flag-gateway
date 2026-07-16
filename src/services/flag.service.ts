@@ -26,7 +26,7 @@ export const getFeatureFlag = async (
         });
         if (!flag) {
             console.error(`Feature flag with key "${key}" not found in cache and database.`);
-            await redisClient.setEx(cacheKey, 30, 'null'); // cache the null result for 30 seconds to prevent repeated DB hits
+            await redisClient.setEx(cacheKey, 30, 'null');
             return false;
         }
 
@@ -54,7 +54,7 @@ const evaluateConditions = (flag: any, context?: any): boolean => {
     }
 
     return Object.entries(flag.conditions).every(([key, value]) => {
-        if (key === 'percentage') return true; // already handled above
+        if (key === 'percentage') return true;
         return context[key] === value;
     });
 };

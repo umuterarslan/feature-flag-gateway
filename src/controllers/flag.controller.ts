@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
 import prisma from '../config/db.js';
 import redisClient from '../config/redis.js';
 import {
@@ -67,6 +67,7 @@ export const updateFeatureFlag = async (req: AuthRequest, res: Response, next: N
             flagEvents.emit('flag_updated', {
                 key: updatedFlag.key,
                 enabled: updatedFlag.enabled,
+                conditions: updateData.conditions,
             });
         }
 
